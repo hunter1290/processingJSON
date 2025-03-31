@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload JSON Files</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { padding: 20px; }
+        .container { max-width: 600px; }
+        .card { margin-top: 20px; }
+        .error-message { color: red; font-weight: bold; }
+        .success-message { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2 class="text-center">Upload JSON Files</h2>
+        
+        <form id="uploadForm" class="mt-4">
+            <div class="mb-3">
+                <label for="locations" class="form-label">Upload Locations JSON:</label>
+                <input type="file" id="locations" class="form-control" accept=".json" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="metadata" class="form-label">Upload Metadata JSON:</label>
+                <input type="file" id="metadata" class="form-control" accept=".json" required>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">Submit</button>
+        </form>
+
+        <div id="responseContainer" class="mt-4"></div>
+    </div>
+
+    <script>
+        document.getElementById("uploadForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const locationsFile = document.getElementById("locations").files[0];
+            const metadataFile = document.getElementById("metadata").files[0];
+
+            if (!locationsFile || !metadataFile) {
+                alert("Please upload both JSON files!");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("locations", locationsFile);
+            formData.append("metadata", metadataFile);
+
+            try {
+                const response = await fetch("http://127.0.0.1:5000/process-data", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const result = await response.json();
+                displayResponse(result);
+            } catch (error) {
+                document.getElementById("responseContainer").innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            }
+        });
+
+        function displayResponse(result) {
+            let responseHTML = '';
+
+            if (result.error) {
+                responseHTML = `<div class="alert alert-danger">${result.error}</div>`;
+            } else {
+                responseHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-success">Valid Points Per Type</h5>
+                            <table class="table table-bordered">
+                                <thead class="table-dark">
+                                    <tr><th>Type</th><th>Count</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${Object.entries(result.valid_points_per_type).map(([type, count]) => 
+                                        `<tr><td>${type}</td><td>${count}</td></tr>`
+                                    ).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-info">Average Rating Per Type</h5>
+                            <table class="table table-bordered">
+                                <thead class="table-primary">
+                                    <tr><th>Type</th><th>Average Rating</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${Object.entries(result.average_rating_per_type).map(([type, avgRating]) => 
+                                        `<tr><td>${type}</td><td>${avgRating.toFixed(2)}</td></tr>`
+                                    ).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-warning">Most Reviewed Location</h5>
+                            ${result.most_reviewed_location ? `
+                                <p><strong>Name:</strong> ${result.most_reviewed_location.type || "N/A"}</p>
+                                <p><strong>Reviews:</strong> ${result.most_reviewed_location.reviews}</p>
+                            ` : `<p class="text-muted">No data available</p>`}
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">Incomplete Data</h5>
+                            ${result.incomplete_data.length > 0 ? `
+                                <ul>${result.incomplete_data.map(id => `<li>ID: ${id}</li>`).join('')}</ul>
+                            ` : `<p class="text-muted">No incomplete data found</p>`}
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById("responseContainer").innerHTML = responseHTML;
+        }
+    </script>
+
+</body>
+</html>
