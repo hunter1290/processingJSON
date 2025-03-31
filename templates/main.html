@@ -52,7 +52,7 @@
             formData.append("metadata", metadataFile);
 
             try {
-                const response = await fetch("http://127.0.0.1:5000/process-data", {
+                const response = await fetch("https://processingjson.onrender.com/process-data", {
                     method: "POST",
                     body: formData
                 });
